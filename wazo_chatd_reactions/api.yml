@@ -1,32 +1,26 @@
 openapi: 3.0.0
 info:
-  title: wazo-chat-reactions
-  description: Message reactions extension for wazo-chatd
-  version: 1.0.0
+  title: wazo-chatd-reactions
+  description: Message reactions and threaded replies extension for wazo-chatd
+  version: 1.1.0
 
 paths:
+  # ===========================================================================
+  # Reactions
+  # ===========================================================================
   /users/me/rooms/{room_uuid}/messages/{message_uuid}/reactions:
     get:
       summary: Get reactions for a message
       description: |
         Returns all reactions for a message, grouped by emoji.
-        Each reaction group includes the count and list of user UUIDs.
+        Each reaction group includes the count, list of user UUIDs, and detailed
+        info (user + timestamp) for tooltip display.
       operationId: getMessageReactions
       tags:
         - reactions
       parameters:
-        - name: room_uuid
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - name: message_uuid
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/room_uuid'
+        - $ref: '#/components/parameters/message_uuid'
       responses:
         '200':
           description: Reactions retrieved successfully
@@ -48,18 +42,8 @@ paths:
       tags:
         - reactions
       parameters:
-        - name: room_uuid
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - name: message_uuid
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/room_uuid'
+        - $ref: '#/components/parameters/message_uuid'
       requestBody:
         required: true
         content:
@@ -90,18 +74,8 @@ paths:
       tags:
         - reactions
       parameters:
-        - name: room_uuid
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - name: message_uuid
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/room_uuid'
+        - $ref: '#/components/parameters/message_uuid'
         - name: emoji
           in: path
           required: true
@@ -116,8 +90,133 @@ paths:
       security:
         - wazo_auth: []
 
+  # ===========================================================================
+  # Replies
+  # ===========================================================================
+  /users/me/rooms/{room_uuid}/messages/{message_uuid}/reply:
+    get:
+      summary: Get reply info for a message
+      description: |
+        Returns the parent message info if this message is a reply.
+        Includes a cached preview of the parent message content.
+      operationId: getMessageReplyInfo
+      tags:
+        - replies
+      parameters:
+        - $ref: '#/components/parameters/room_uuid'
+        - $ref: '#/components/parameters/message_uuid'
+      responses:
+        '200':
+          description: Reply info retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplyInfo'
+        '404':
+          description: Message is not a reply, or room/message not found
+      security:
+        - wazo_auth: []
+    
+    post:
+      summary: Create a reply relationship
+      description: |
+        Marks an existing message as a reply to another message.
+        Call this after creating a message to establish the reply relationship.
+        The message_uuid in the URL is the child (reply) message.
+      operationId: createReplyRelationship
+      tags:
+        - replies
+      parameters:
+        - $ref: '#/components/parameters/room_uuid'
+        - $ref: '#/components/parameters/message_uuid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplyCreate'
+      responses:
+        '201':
+          description: Reply relationship created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplyInfo'
+        '404':
+          description: Room, parent message, or child message not found
+      security:
+        - wazo_auth: []
+
+  /users/me/rooms/{room_uuid}/messages/{message_uuid}/replies:
+    get:
+      summary: Get all replies to a message
+      description: |
+        Returns a list of message UUIDs that are replies to this message.
+      operationId: getMessageReplies
+      tags:
+        - replies
+      parameters:
+        - $ref: '#/components/parameters/room_uuid'
+        - $ref: '#/components/parameters/message_uuid'
+      responses:
+        '200':
+          description: Replies retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageReplies'
+        '404':
+          description: Room or message not found
+      security:
+        - wazo_auth: []
+
+  /users/me/rooms/{room_uuid}/replies:
+    get:
+      summary: Get all reply metadata for a room
+      description: |
+        Returns a dict mapping message UUIDs to their reply info.
+        Useful for batch loading reply data when entering a room.
+      operationId: getRoomReplyMetadata
+      tags:
+        - replies
+      parameters:
+        - $ref: '#/components/parameters/room_uuid'
+      responses:
+        '200':
+          description: Reply metadata retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomReplyMetadata'
+        '404':
+          description: Room not found
+      security:
+        - wazo_auth: []
+
 components:
+  parameters:
+    room_uuid:
+      name: room_uuid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: The room UUID
+    
+    message_uuid:
+      name: message_uuid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: The message UUID
+
   schemas:
+    # =========================================================================
+    # Reaction Schemas
+    # =========================================================================
     Reaction:
       type: object
       properties:
@@ -144,6 +243,17 @@ components:
           description: The emoji to add as a reaction
           example: "👍"
 
+    ReactionDetail:
+      type: object
+      description: Detailed reaction info for a single user (for tooltip display)
+      properties:
+        user_uuid:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+
     ReactionSummary:
       type: object
       properties:
@@ -161,6 +271,11 @@ components:
         reacted_by_me:
           type: boolean
           description: Whether the current user has reacted with this emoji
+        details:
+          type: array
+          description: Detailed info for each user who reacted
+          items:
+            $ref: '#/components/schemas/ReactionDetail'
 
     MessageReactions:
       type: object
@@ -172,6 +287,91 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ReactionSummary'
+
+    # =========================================================================
+    # Reply Schemas
+    # =========================================================================
+    ParentPreview:
+      type: object
+      description: Cached preview of the parent message
+      properties:
+        content:
+          type: string
+          description: First 200 characters of the parent message content
+        author_uuid:
+          type: string
+          format: uuid
+          nullable: true
+        author_alias:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    ReplyCreate:
+      type: object
+      required:
+        - parent_message_uuid
+      properties:
+        parent_message_uuid:
+          type: string
+          format: uuid
+          description: The UUID of the message being replied to
+
+    ReplyInfo:
+      type: object
+      properties:
+        child_message_uuid:
+          type: string
+          format: uuid
+          description: The reply message UUID
+        parent_message_uuid:
+          type: string
+          format: uuid
+          nullable: true
+          description: The parent message UUID (null if parent was deleted)
+        room_uuid:
+          type: string
+          format: uuid
+        parent_preview:
+          $ref: '#/components/schemas/ParentPreview'
+
+    ReplyListItem:
+      type: object
+      properties:
+        message_uuid:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+
+    MessageReplies:
+      type: object
+      properties:
+        parent_message_uuid:
+          type: string
+          format: uuid
+        reply_count:
+          type: integer
+        replies:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReplyListItem'
+
+    RoomReplyMetadata:
+      type: object
+      properties:
+        room_uuid:
+          type: string
+          format: uuid
+        replies:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ReplyInfo'
+          description: Map of message UUID to reply info
 
   securitySchemes:
     wazo_auth:

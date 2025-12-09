@@ -49,9 +49,47 @@ CREATE INDEX IF NOT EXISTS idx_chatd_reaction_user_uuid
 
 -- Grant permissions to wazo-chatd user (asterisk)
 GRANT SELECT, INSERT, DELETE ON chatd_room_message_reaction TO asterisk;
+
+-- Create replies table for message threading
+CREATE TABLE IF NOT EXISTS chatd_room_message_reply (
+    child_message_uuid UUID NOT NULL,
+    parent_message_uuid UUID,
+    room_uuid UUID NOT NULL,
+    parent_content_preview VARCHAR(200),
+    parent_author_uuid UUID,
+    parent_author_alias VARCHAR(256),
+    parent_created_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    PRIMARY KEY (child_message_uuid),
+    CONSTRAINT fk_child_message
+        FOREIGN KEY (child_message_uuid)
+        REFERENCES chatd_room_message(uuid)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_parent_message
+        FOREIGN KEY (parent_message_uuid)
+        REFERENCES chatd_room_message(uuid)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_room
+        FOREIGN KEY (room_uuid)
+        REFERENCES chatd_room(uuid)
+        ON DELETE CASCADE
+);
+
+-- Create indexes for reply lookups
+CREATE INDEX IF NOT EXISTS idx_chatd_reply_parent_uuid 
+    ON chatd_room_message_reply(parent_message_uuid);
+
+CREATE INDEX IF NOT EXISTS idx_chatd_reply_child_uuid 
+    ON chatd_room_message_reply(child_message_uuid);
+
+CREATE INDEX IF NOT EXISTS idx_chatd_reply_room_uuid 
+    ON chatd_room_message_reply(room_uuid);
+
+-- Grant permissions for replies table
+GRANT SELECT, INSERT, UPDATE, DELETE ON chatd_room_message_reply TO asterisk;
 EOF
 
-        echo "Database table created successfully"
+        echo "Database tables created successfully"
         
         # Restart wazo-chatd to load the new plugin
         systemctl restart wazo-chatd || echo "Warning: Could not restart wazo-chatd"
@@ -68,17 +106,21 @@ EOF
     postrm)
         echo "Removing wazo-chatd-reactions data..."
         
-        # Drop the reactions table
+        # Drop the tables
         sudo -u postgres psql -d "${PGDATABASE}" << 'EOF'
--- Drop indexes first
+-- Drop reply indexes and table first (it references reactions)
+DROP INDEX IF EXISTS idx_chatd_reply_parent_uuid;
+DROP INDEX IF EXISTS idx_chatd_reply_child_uuid;
+DROP INDEX IF EXISTS idx_chatd_reply_room_uuid;
+DROP TABLE IF EXISTS chatd_room_message_reply;
+
+-- Drop reaction indexes and table
 DROP INDEX IF EXISTS idx_chatd_reaction_message_uuid;
 DROP INDEX IF EXISTS idx_chatd_reaction_user_uuid;
-
--- Drop the table
 DROP TABLE IF EXISTS chatd_room_message_reaction;
 EOF
 
-        echo "Database table removed successfully"
+        echo "Database tables removed successfully"
         ;;
 
     *)

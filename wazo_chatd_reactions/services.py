@@ -33,7 +33,8 @@ class ReactionService:
         """Get all reactions for a message, grouped by emoji.
         
         Returns a dict with message_uuid and reactions list.
-        Each reaction has emoji, count, user_uuids, and reacted_by_me.
+        Each reaction has emoji, count, user_uuids, reacted_by_me, and details.
+        Details contains user_uuid + created_at for each reaction (for tooltip display).
         """
         # Verify room exists and user has access
         room = self._get_room(tenant_uuid, room_uuid)
@@ -44,19 +45,24 @@ class ReactionService:
         # Get raw reactions from database
         reactions = self._reaction_dao.get_by_message(message_uuid)
         
-        # Group by emoji
+        # Group by emoji, keeping full reaction details
         grouped = defaultdict(list)
         for reaction in reactions:
-            grouped[reaction.emoji].append(str(reaction.user_uuid))
+            grouped[reaction.emoji].append({
+                'user_uuid': str(reaction.user_uuid),
+                'created_at': reaction.created_at,
+            })
         
-        # Build summary
+        # Build summary with details
         result = []
-        for emoji, user_uuids in grouped.items():
+        for emoji, details in grouped.items():
+            user_uuids = [d['user_uuid'] for d in details]
             result.append({
                 'emoji': emoji,
-                'count': len(user_uuids),
+                'count': len(details),
                 'user_uuids': user_uuids,
                 'reacted_by_me': str(current_user_uuid) in user_uuids,
+                'details': details,
             })
         
         return {

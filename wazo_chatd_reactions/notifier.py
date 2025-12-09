@@ -6,6 +6,7 @@ import logging
 from .events import (
     UserRoomMessageReactionCreatedEvent,
     UserRoomMessageReactionDeletedEvent,
+    UserRoomMessageReplyCreatedEvent,
 )
 
 logger = logging.getLogger(__name__)
@@ -69,6 +70,40 @@ class ReactionNotifier:
                 reaction_data,
                 room_uuid=str(room.uuid),
                 message_uuid=str(message.uuid),
+                tenant_uuid=str(room.tenant_uuid),
+                user_uuid=str(user.uuid),
+            )
+            self._bus_publisher.publish(event)
+
+    def reply_created(self, room, child_message, parent_message, reply):
+        """Notify all room users that a reply was created."""
+        logger.debug(
+            'Notifying reply created: parent=%s, child=%s',
+            reply.parent_message_uuid,
+            reply.child_message_uuid,
+        )
+        
+        # Include all necessary data for WebSocket clients
+        reply_data = {
+            'room_uuid': str(room.uuid),
+            'child_message_uuid': str(reply.child_message_uuid),
+            'parent_message_uuid': str(reply.parent_message_uuid),
+            'parent_preview': {
+                'content': reply.parent_content_preview,
+                'author_uuid': str(reply.parent_author_uuid) if reply.parent_author_uuid else None,
+                'author_alias': reply.parent_author_alias,
+                'created_at': reply.parent_created_at.isoformat() if reply.parent_created_at else None,
+            },
+            'created_at': reply.created_at.isoformat() if reply.created_at else None,
+        }
+        
+        # Notify each user in the room
+        for user in room.users:
+            event = UserRoomMessageReplyCreatedEvent(
+                reply_data,
+                room_uuid=str(room.uuid),
+                parent_message_uuid=str(reply.parent_message_uuid),
+                child_message_uuid=str(reply.child_message_uuid),
                 tenant_uuid=str(room.tenant_uuid),
                 user_uuid=str(user.uuid),
             )

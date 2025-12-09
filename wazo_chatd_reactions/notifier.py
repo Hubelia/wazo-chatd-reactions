@@ -26,10 +26,13 @@ class ReactionNotifier:
             reaction.emoji,
         )
         
+        # Include room_uuid and message_uuid in data for WebSocket clients
         reaction_data = {
             'emoji': reaction.emoji,
             'user_uuid': str(reaction.user_uuid),
             'created_at': reaction.created_at.isoformat() if reaction.created_at else None,
+            'room_uuid': str(room.uuid),
+            'message_uuid': str(reaction.message_uuid),
         }
         
         # Notify each user in the room
@@ -52,9 +55,12 @@ class ReactionNotifier:
             emoji,
         )
         
+        # Include room_uuid and message_uuid in data for WebSocket clients
         reaction_data = {
             'emoji': emoji,
             'user_uuid': str(user_uuid),
+            'room_uuid': str(room.uuid),
+            'message_uuid': str(message.uuid),
         }
         
         # Notify each user in the room

@@ -33,9 +33,8 @@ class Plugin:
         dao = dependencies['dao']
         bus_publisher = dependencies['bus_publisher']
 
-        # Create reaction-specific DAO using chatd's session
-        # The dao object from chatd has a session property we can use
-        reaction_dao = ReactionDAO(dao.session)
+        # Create reaction-specific DAO (uses chatd's Session internally)
+        reaction_dao = ReactionDAO()
         
         # Create notifier for WebSocket events
         notifier = ReactionNotifier(bus_publisher)

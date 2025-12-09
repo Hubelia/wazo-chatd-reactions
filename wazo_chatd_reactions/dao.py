@@ -13,14 +13,23 @@ from datetime import datetime, timezone
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
+# Import the scoped session directly from wazo-chatd
+from wazo_chatd.database.helpers import Session
+
 logger = logging.getLogger(__name__)
 
 
 class ReactionDAO:
     """DAO for reaction database operations."""
 
-    def __init__(self, session):
-        self._session = session
+    def __init__(self):
+        # Use the shared Session from wazo-chatd
+        pass
+    
+    @property
+    def _session(self):
+        """Get the current session."""
+        return Session()
 
     def get(self, message_uuid, user_uuid, emoji):
         """Get a specific reaction."""

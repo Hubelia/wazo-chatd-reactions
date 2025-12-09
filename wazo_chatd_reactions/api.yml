@@ -1,0 +1,180 @@
+openapi: 3.0.0
+info:
+  title: wazo-chat-reactions
+  description: Message reactions extension for wazo-chatd
+  version: 1.0.0
+
+paths:
+  /users/me/rooms/{room_uuid}/messages/{message_uuid}/reactions:
+    get:
+      summary: Get reactions for a message
+      description: |
+        Returns all reactions for a message, grouped by emoji.
+        Each reaction group includes the count and list of user UUIDs.
+      operationId: getMessageReactions
+      tags:
+        - reactions
+      parameters:
+        - name: room_uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: message_uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reactions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageReactions'
+        '404':
+          description: Room or message not found
+      security:
+        - wazo_auth: []
+    
+    post:
+      summary: Add a reaction to a message
+      description: |
+        Adds an emoji reaction to a message.
+        A user can only add each emoji once per message.
+      operationId: addReaction
+      tags:
+        - reactions
+      parameters:
+        - name: room_uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: message_uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReactionCreate'
+      responses:
+        '201':
+          description: Reaction added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reaction'
+        '404':
+          description: Room or message not found
+        '409':
+          description: Reaction already exists
+      security:
+        - wazo_auth: []
+
+  /users/me/rooms/{room_uuid}/messages/{message_uuid}/reactions/{emoji}:
+    delete:
+      summary: Remove a reaction from a message
+      description: |
+        Removes an emoji reaction from a message.
+        Only the user who added the reaction can remove it.
+      operationId: removeReaction
+      tags:
+        - reactions
+      parameters:
+        - name: room_uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: message_uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: emoji
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The emoji to remove (URL-encoded if necessary)
+      responses:
+        '204':
+          description: Reaction removed successfully
+        '404':
+          description: Room, message, or reaction not found
+      security:
+        - wazo_auth: []
+
+components:
+  schemas:
+    Reaction:
+      type: object
+      properties:
+        message_uuid:
+          type: string
+          format: uuid
+        user_uuid:
+          type: string
+          format: uuid
+        emoji:
+          type: string
+          example: "👍"
+        created_at:
+          type: string
+          format: date-time
+
+    ReactionCreate:
+      type: object
+      required:
+        - emoji
+      properties:
+        emoji:
+          type: string
+          description: The emoji to add as a reaction
+          example: "👍"
+
+    ReactionSummary:
+      type: object
+      properties:
+        emoji:
+          type: string
+          example: "👍"
+        count:
+          type: integer
+          example: 3
+        user_uuids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        reacted_by_me:
+          type: boolean
+          description: Whether the current user has reacted with this emoji
+
+    MessageReactions:
+      type: object
+      properties:
+        message_uuid:
+          type: string
+          format: uuid
+        reactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReactionSummary'
+
+  securitySchemes:
+    wazo_auth:
+      type: apiKey
+      in: header
+      name: X-Auth-Token

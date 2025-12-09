@@ -1,0 +1,5 @@
+# wazo-chat-reactions plugin configuration
+# This file enables the reactions plugin in wazo-chatd
+
+enabled_plugins:
+  reactions: true

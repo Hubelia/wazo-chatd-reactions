@@ -1,0 +1,14 @@
+name: wazo-chatd-reactions
+namespace: community
+version: 1.0.0
+author: Community
+display_name: Chat Message Reactions
+description: Add emoji reactions to chat messages in Wazo
+min_wazo_version: 23.01
+plugin_format_version: 1
+tags:
+  - chat
+  - chatd
+  - reactions
+  - emoji
+homepage: https://github.com/Hubelia/wazo-chatd-reactions

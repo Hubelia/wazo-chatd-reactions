@@ -1,0 +1,88 @@
+#!/bin/bash
+# Copyright 2024 Community Contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# wazo-chatd-reactions plugin install/uninstall rules
+
+set -e
+
+PGDATABASE="asterisk"
+
+case "$1" in
+    build)
+        echo "Building wazo-chatd-reactions..."
+        python3 setup.py bdist
+        ;;
+
+    package)
+        echo "Packaging wazo-chatd-reactions..."
+        # shellcheck disable=SC2154
+        tar xvf dist/wazo-chatd-reactions-*.tar.gz -C "${pkgdir}"
+        cp -R etc "${pkgdir}/"
+        ;;
+
+    install)
+        echo "Installing wazo-chatd-reactions..."
+        
+        # Create the reactions table
+        sudo -u postgres psql -d "${PGDATABASE}" << 'EOF'
+-- Create reactions table if it doesn't exist
+CREATE TABLE IF NOT EXISTS chatd_room_message_reaction (
+    message_uuid UUID NOT NULL,
+    user_uuid UUID NOT NULL,
+    emoji VARCHAR(10) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    PRIMARY KEY (message_uuid, user_uuid, emoji),
+    CONSTRAINT fk_message
+        FOREIGN KEY (message_uuid)
+        REFERENCES chatd_room_message(uuid)
+        ON DELETE CASCADE
+);
+
+-- Create index for faster lookups by message
+CREATE INDEX IF NOT EXISTS idx_chatd_reaction_message_uuid 
+    ON chatd_room_message_reaction(message_uuid);
+
+-- Create index for faster lookups by user
+CREATE INDEX IF NOT EXISTS idx_chatd_reaction_user_uuid 
+    ON chatd_room_message_reaction(user_uuid);
+
+-- Grant permissions to wazo-chatd user (asterisk)
+GRANT SELECT, INSERT, DELETE ON chatd_room_message_reaction TO asterisk;
+EOF
+
+        echo "Database table created successfully"
+        
+        # Restart wazo-chatd to load the new plugin
+        systemctl restart wazo-chatd || echo "Warning: Could not restart wazo-chatd"
+        
+        echo "wazo-chatd-reactions installed successfully"
+        ;;
+
+    uninstall)
+        echo "Uninstalling wazo-chatd-reactions..."
+        # Restart wazo-chatd without the plugin
+        systemctl restart wazo-chatd || echo "Warning: Could not restart wazo-chatd"
+        ;;
+
+    postrm)
+        echo "Removing wazo-chatd-reactions data..."
+        
+        # Drop the reactions table
+        sudo -u postgres psql -d "${PGDATABASE}" << 'EOF'
+-- Drop indexes first
+DROP INDEX IF EXISTS idx_chatd_reaction_message_uuid;
+DROP INDEX IF EXISTS idx_chatd_reaction_user_uuid;
+
+-- Drop the table
+DROP TABLE IF EXISTS chatd_room_message_reaction;
+EOF
+
+        echo "Database table removed successfully"
+        ;;
+
+    *)
+        echo "$0 called with unknown argument '$1'" >&2
+        exit 1
+        ;;
+esac

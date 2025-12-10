@@ -171,6 +171,40 @@ class ReactionDAO:
             for row in results
         ]
 
+    def get_all_for_room(self, room_uuid):
+        """Get all reactions for all messages in a room.
+        
+        This joins with the chatd_room_message table to find all messages
+        in the room, then gets their reactions.
+        
+        Args:
+            room_uuid: The room UUID
+            
+        Returns:
+            List of ReactionResult objects
+        """
+        query = text("""
+            SELECT r.message_uuid, r.user_uuid, r.emoji, r.created_at
+            FROM chatd_room_message_reaction r
+            INNER JOIN chatd_room_message m ON r.message_uuid = m.uuid
+            WHERE m.room_uuid = :room_uuid
+            ORDER BY r.message_uuid, r.created_at ASC
+        """)
+        results = self._session.execute(
+            query,
+            {'room_uuid': str(room_uuid)}
+        ).fetchall()
+        
+        return [
+            ReactionResult(
+                message_uuid=row[0],
+                user_uuid=row[1],
+                emoji=row[2],
+                created_at=row[3],
+            )
+            for row in results
+        ]
+
 
 class ReactionResult:
     """Simple result object for reaction data."""

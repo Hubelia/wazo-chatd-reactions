@@ -127,17 +127,15 @@ class ReactionService:
         # Verify room exists and user has access
         room = self._get_room(tenant_uuid, room_uuid)
         
-        # Get all message UUIDs in the room
-        message_uuids = [msg.uuid for msg in room.messages]
+        # Get all reactions for this room directly from the reaction table
+        # This avoids relying on room.messages which may not be loaded
+        reactions = self._reaction_dao.get_all_for_room(room_uuid)
         
-        if not message_uuids:
+        if not reactions:
             return {
                 'room_uuid': str(room_uuid),
                 'reactions': {},
             }
-        
-        # Get all reactions for these messages in one query
-        reactions = self._reaction_dao.get_by_room(room_uuid, message_uuids)
         
         # Group by message, then by emoji
         by_message = defaultdict(lambda: defaultdict(list))

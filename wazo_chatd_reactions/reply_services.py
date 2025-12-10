@@ -51,7 +51,7 @@ class ReplyService:
                 'content': reply.parent_content_preview,
                 'author_uuid': str(reply.parent_author_uuid) if reply.parent_author_uuid else None,
                 'author_alias': reply.parent_author_alias,
-                'created_at': reply.parent_created_at.isoformat() if reply.parent_created_at else None,
+                'created_at': reply.parent_created_at,  # Let schema handle datetime formatting
             } if reply.parent_content_preview else None,
         }
 
@@ -75,7 +75,7 @@ class ReplyService:
             'replies': [
                 {
                     'message_uuid': str(r.child_message_uuid),
-                    'created_at': r.created_at.isoformat() if r.created_at else None,
+                    'created_at': r.created_at,  # Let schema handle datetime formatting
                 }
                 for r in replies
             ],
@@ -100,7 +100,7 @@ class ReplyService:
                     'content': reply.parent_content_preview,
                     'author_uuid': str(reply.parent_author_uuid) if reply.parent_author_uuid else None,
                     'author_alias': reply.parent_author_alias,
-                    'created_at': reply.parent_created_at.isoformat() if reply.parent_created_at else None,
+                    'created_at': reply.parent_created_at,  # Let schema handle datetime formatting
                 } if reply.parent_content_preview else None,
             }
         
@@ -147,7 +147,7 @@ class ReplyService:
                 'content': reply.parent_content_preview,
                 'author_uuid': str(reply.parent_author_uuid) if reply.parent_author_uuid else None,
                 'author_alias': reply.parent_author_alias,
-                'created_at': reply.parent_created_at.isoformat() if reply.parent_created_at else None,
+                'created_at': reply.parent_created_at,  # Let schema handle datetime formatting
             },
         }
 

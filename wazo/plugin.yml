@@ -1,6 +1,6 @@
 name: wazo-chatd-reactions
 namespace: community
-version: 1.1.0
+version: 1.1.1
 author: Community
 display_name: Chat Message Reactions & Replies
 description: Add emoji reactions and threaded replies to chat messages in Wazo

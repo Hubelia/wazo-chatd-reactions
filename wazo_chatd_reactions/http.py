@@ -11,6 +11,7 @@ from .schemas import (
     ReactionCreateSchema,
     MessageReactionsSchema,
     ReactionSchema,
+    RoomReactionsSchema,
     ReplyCreateSchema,
     ReplyInfoSchema,
     MessageRepliesSchema,
@@ -80,6 +81,27 @@ class MessageReactionResource(AuthResource):
             emoji=emoji,
         )
         return '', 204
+
+
+class RoomReactionsResource(AuthResource):
+    """Resource for getting all reactions in a room (batch loading)."""
+
+    def __init__(self, service):
+        self._service = service
+
+    @required_acl('chatd.users.me.rooms.{room_uuid}.reactions.read')
+    def get(self, room_uuid):
+        """Get all reactions for all messages in a room.
+        
+        Returns a dict mapping message UUIDs to their reactions.
+        Useful for batch loading reaction data for a room.
+        """
+        result = self._service.get_room_reactions(
+            tenant_uuid=token.tenant_uuid,
+            room_uuid=room_uuid,
+            current_user_uuid=token.user_uuid,
+        )
+        return RoomReactionsSchema().dump(result), 200
 
 
 # =============================================================================

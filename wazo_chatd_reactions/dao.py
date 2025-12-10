@@ -134,6 +134,43 @@ class ReactionDAO:
         )
         self._session.commit()
 
+    def get_by_room(self, room_uuid, message_uuids):
+        """Get all reactions for multiple messages in a room.
+        
+        Args:
+            room_uuid: The room UUID (for validation context)
+            message_uuids: List of message UUIDs to get reactions for
+            
+        Returns:
+            List of ReactionResult objects
+        """
+        if not message_uuids:
+            return []
+        
+        # Convert to strings for query
+        uuid_strings = [str(uuid) for uuid in message_uuids]
+        
+        query = text("""
+            SELECT message_uuid, user_uuid, emoji, created_at
+            FROM chatd_room_message_reaction
+            WHERE message_uuid = ANY(:message_uuids)
+            ORDER BY message_uuid, created_at ASC
+        """)
+        results = self._session.execute(
+            query,
+            {'message_uuids': uuid_strings}
+        ).fetchall()
+        
+        return [
+            ReactionResult(
+                message_uuid=row[0],
+                user_uuid=row[1],
+                emoji=row[2],
+                created_at=row[3],
+            )
+            for row in results
+        ]
+
 
 class ReactionResult:
     """Simple result object for reaction data."""

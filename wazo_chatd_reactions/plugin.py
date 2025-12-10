@@ -12,6 +12,7 @@ from .reply_dao import ReplyDAO
 from .http import (
     MessageReactionsResource,
     MessageReactionResource,
+    RoomReactionsResource,
     MessageReplyInfoResource,
     MessageRepliesResource,
     RoomReplyMetadataResource,
@@ -56,6 +57,13 @@ class Plugin:
         api.add_resource(
             MessageReactionResource,
             '/users/me/rooms/<uuid:room_uuid>/messages/<uuid:message_uuid>/reactions/<string:emoji>',
+            resource_class_args=[reaction_service],
+        )
+
+        # Get all reactions for a room (batch loading)
+        api.add_resource(
+            RoomReactionsResource,
+            '/users/me/rooms/<uuid:room_uuid>/reactions',
             resource_class_args=[reaction_service],
         )
 

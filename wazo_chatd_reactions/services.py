@@ -118,6 +118,55 @@ class ReactionService:
         # Notify via WebSocket
         self._notifier.reaction_deleted(room, message, user_uuid, emoji)
 
+    def get_room_reactions(self, tenant_uuid, room_uuid, current_user_uuid):
+        """Get all reactions for all messages in a room.
+        
+        Returns a dict mapping message_uuid to grouped reactions.
+        This is for batch loading to avoid N+1 queries.
+        """
+        # Verify room exists and user has access
+        room = self._get_room(tenant_uuid, room_uuid)
+        
+        # Get all message UUIDs in the room
+        message_uuids = [msg.uuid for msg in room.messages]
+        
+        if not message_uuids:
+            return {
+                'room_uuid': str(room_uuid),
+                'reactions': {},
+            }
+        
+        # Get all reactions for these messages in one query
+        reactions = self._reaction_dao.get_by_room(room_uuid, message_uuids)
+        
+        # Group by message, then by emoji
+        by_message = defaultdict(lambda: defaultdict(list))
+        for reaction in reactions:
+            by_message[str(reaction.message_uuid)][reaction.emoji].append({
+                'user_uuid': str(reaction.user_uuid),
+                'created_at': reaction.created_at,
+            })
+        
+        # Build result structure
+        result = {}
+        for message_uuid, emoji_groups in by_message.items():
+            message_reactions = []
+            for emoji, details in emoji_groups.items():
+                user_uuids = [d['user_uuid'] for d in details]
+                message_reactions.append({
+                    'emoji': emoji,
+                    'count': len(details),
+                    'user_uuids': user_uuids,
+                    'reacted_by_me': str(current_user_uuid) in user_uuids,
+                    'details': details,
+                })
+            result[message_uuid] = message_reactions
+        
+        return {
+            'room_uuid': str(room_uuid),
+            'reactions': result,
+        }
+
     def _get_room(self, tenant_uuid, room_uuid):
         """Get room by UUID, verifying tenant access."""
         # Use chatd's room DAO

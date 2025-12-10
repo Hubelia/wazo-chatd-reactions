@@ -49,6 +49,17 @@ class MessageReactionsSchema(Schema):
     reactions = fields.Nested(ReactionSummarySchema, many=True)
 
 
+class RoomReactionsSchema(Schema):
+    """Schema for all reactions in a room (batch loading)."""
+    
+    room_uuid = fields.UUID()
+    # Dict mapping message_uuid (string) to list of reaction summaries
+    reactions = fields.Dict(
+        keys=fields.String(),
+        values=fields.Nested(ReactionSummarySchema, many=True)
+    )
+
+
 # =============================================================================
 # Reply Schemas
 # =============================================================================
